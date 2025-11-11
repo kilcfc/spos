@@ -34,7 +34,7 @@ public class cpuscheduling{
             cpuList.add(new pro(i,at,bt));
         }
 
-        
+        cpuList.sort(Comparator.comparingInt(a->a.at));
         PriorityQueue<pro>cpuQueue = new PriorityQueue<>(Comparator.comparingInt(a->a.rt));
         
         int time =0;
