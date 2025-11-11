@@ -2,6 +2,7 @@ import java.util.*;
 
 class pro{
     int id,at,bt,ct,rt,wt,tat;
+    boolean added = false;
 
     pro(int id,int at, int bt){
         this.id = id;
@@ -44,8 +45,9 @@ public class cpuscheduling{
         while(complete<n){
 
             for(pro p:cpuList){
-                if(p.at<=time && p.rt==p.bt){
+                if(p.at<=time && !p.added){
                     cpuQueue.add(p);
+                      p.added = true;
                 }
             }
             if(cpuQueue.isEmpty()){
@@ -70,6 +72,7 @@ public class cpuscheduling{
             complete++;}
             else{
                 cpuQueue.add(cur);
+                
             }
         }
 
