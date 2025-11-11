@@ -49,7 +49,7 @@ public class cpuscheduling{
             for(pro p:cpuList){
                 if(p.at<=time && !p.added){
                     cpuQueue.add(p);
-                      added = true;
+                      p.added = true;
                 }
             }
             if(cpuQueue.isEmpty()){
