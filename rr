@@ -36,7 +36,7 @@ public class cpuscheduling{
 
         cpuList.sort(Comparator.comparingInt(a->a.at));
         Queue<pro>cpuQueue = new LinkedList<>();
-        cpuQueue.add(cpuList.get(0));
+        
         int time =0;
         int complete = 0;
         float totaltat=0;
@@ -45,8 +45,9 @@ public class cpuscheduling{
 
         while(complete<n){
              for(pro p:cpuList){
-                if(p.at<=time && p.rt>0 && !cpuQueue.contains(p)){
+                if(p.at<=time && p.rt>0 && !p.added){
                     cpuQueue.add(p);
+                        p.added = true;
                 }
             }
             if(cpuQueue.isEmpty()){
