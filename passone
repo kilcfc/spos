@@ -1,0 +1,179 @@
+import java.io.*;
+import java.util.HashMap;
+
+class Symbol {
+    String name;
+    int address;
+}
+
+class Literal {
+    String value;
+    int address;
+}
+
+public class Pass1 {
+
+    final int MAX = 20;
+
+    HashMap<String, Integer> OPTAB = new HashMap<>();
+    HashMap<String, Integer> REGTAB = new HashMap<>();
+    HashMap<String, Integer> CONDTAB = new HashMap<>();
+    HashMap<String, Integer> ADTAB = new HashMap<>();
+
+    Symbol[] SYMTAB = new Symbol[MAX];
+    Literal[] LITTAB = new Literal[MAX];
+
+    int LC = 0, symCount = 0, litCount = 0, poolPtr = 0;
+
+    public Pass1() {
+        initTables();
+        for (int i = 0; i < MAX; i++) {
+            SYMTAB[i] = new Symbol();
+            LITTAB[i] = new Literal();
+        }
+    }
+
+    void initTables() {
+        // Instructions
+        String[] ops = {"STOP", "ADD", "SUB", "MULT", "MOVER", "MOVEM", "COMP", "BC", "DIV", "READ", "PRINT"};
+        for (int i = 0; i < ops.length; i++) OPTAB.put(ops[i], i);
+
+        // Registers
+        REGTAB.put("AREG", 1);
+        REGTAB.put("BREG", 2);
+        REGTAB.put("CREG", 3);
+        REGTAB.put("DREG", 4);
+
+        // Conditions
+        String[] cond = {"LT", "LE", "EQ", "GT", "GE", "ANY"};
+        for (int i = 0; i < cond.length; i++) CONDTAB.put(cond[i], i + 1);
+
+        // Assembler directives
+        ADTAB.put("START", 1);
+        ADTAB.put("END", 2);
+        ADTAB.put("ORIGIN", 3);
+        ADTAB.put("EQU", 4);
+        ADTAB.put("LTORG", 5);
+    }
+
+    int findSymbol(String s) {
+        for (int i = 0; i < symCount; i++)
+            if (s.equals(SYMTAB[i].name)) return i;
+        return -1;
+    }
+
+    void writeLine(BufferedWriter out, String txt) throws IOException {
+        out.write(txt);
+        out.newLine();
+    }
+
+    void passOne() throws IOException {
+        BufferedReader in = new BufferedReader(new FileReader("input.txt"));
+        BufferedWriter out = new BufferedWriter(new FileWriter("ic.txt"));
+
+        String line;
+
+        while ((line = in.readLine()) != null) {
+            String[] parts = line.split("[ ,]+");
+            int len = parts.length;
+
+            // START and ORIGIN — set LC
+            if (len == 2 && ADTAB.containsKey(parts[0])) {
+                LC = Integer.parseInt(parts[1]);
+                writeLine(out, "(AD," + ADTAB.get(parts[0]) + ") (C," + parts[1] + ")");
+                continue;
+            }
+
+            // STOP / END / LTORG
+            if (len == 1) {
+                if (OPTAB.containsKey(parts[0])) {
+                    writeLine(out, "(IS," + OPTAB.get(parts[0]) + ")");
+                    LC++;
+                } else if (ADTAB.containsKey(parts[0])) {
+                    // Assign literal addresses
+                    for (int i = poolPtr; i < litCount; i++)
+                        LITTAB[i].address = LC++;
+                    poolPtr = litCount;
+                    writeLine(out, "(AD," + ADTAB.get(parts[0]) + ")");
+                }
+                continue;
+            }
+
+            // DS / DC
+            if (len == 3 && (parts[1].equals("DS") || parts[1].equals("DC"))) {
+                int pos = findSymbol(parts[0]);
+                if (pos == -1) pos = symCount++;
+                SYMTAB[pos].name = parts[0];
+                SYMTAB[pos].address = LC;
+
+                if (parts[1].equals("DS")) {
+                    writeLine(out, "(DL,02) (C," + parts[2] + ")");
+                    LC += Integer.parseInt(parts[2]);
+                } else {
+                    writeLine(out, "(DL,01) (C," + parts[2] + ")");
+                    LC++;
+                }
+                continue;
+            }
+
+            // Instructions with operands
+            if (OPTAB.containsKey(parts[0])) {
+                int opcode = OPTAB.get(parts[0]);
+                LC++;
+
+                int regOrCond = (opcode == 7)   // BC → condition codes
+                        ? CONDTAB.get(parts[1])
+                        : REGTAB.get(parts[1]);
+
+                String operand = parts[2];
+                if (operand.startsWith("='")) {
+                    LITTAB[litCount].value = operand.substring(2, 3);
+                    litCount++;
+                    writeLine(out, "(IS," + opcode + ") (" + regOrCond + ") (L," + litCount + ")");
+                } else {
+                    int idx = findSymbol(operand);
+                    if (idx == -1) idx = symCount++;
+                    SYMTAB[idx].name = operand;
+                    writeLine(out, "(IS," + opcode + ") (" + regOrCond + ") (S," + (idx + 1) + ")");
+                }
+            } 
+        }
+
+        in.close();
+        out.close();
+    }
+
+    void printSYMTAB() {
+        for (int i = 0; i < symCount; i++)
+            System.out.println(SYMTAB[i].name + "\t" + SYMTAB[i].address);
+    }
+
+    void printLITTAB() {
+        for (int i = 0; i < litCount; i++)
+            System.out.println(LITTAB[i].value + "\t" + LITTAB[i].address);
+    }
+
+    void printFile(String file) throws IOException {
+        BufferedReader br = new BufferedReader(new FileReader(file));
+        String s;
+        while ((s = br.readLine()) != null) System.out.println(s);
+        br.close();
+    }
+
+    public static void main(String[] args) throws IOException {
+        Pass1 obj = new Pass1();
+        obj.passOne();
+
+        System.out.println("\nSOURCE CODE\n");
+        obj.printFile("input.txt");
+
+        System.out.println("\n\nINTERMEDIATE CODE\n");
+        obj.printFile("ic.txt");
+
+        System.out.println("\n\nSYMBOL TABLE\nSymbol\tAddress\n=================");
+        obj.printSYMTAB();
+
+        System.out.println("\n\nLITERAL TABLE\nLiteral\tAddress\n=================");
+        obj.printLITTAB();
+    } 
+}
